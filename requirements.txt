@@ -1,0 +1,46 @@
+# Core ML/DL
+tensorflow
+numpy
+pandas
+scikit-learn
+opencv-python
+pillow
+
+# Visualization
+matplotlib
+seaborn
+
+# Backend API
+fastapi
+uvicorn
+pydantic
+python-multipart
+
+# Frontend
+streamlit
+
+# Report Generation
+jinja2
+weasyprint
+
+# Explainable AI
+grad-cam
+
+# Database
+pymongo
+
+# Utilities
+python-dotenv
+joblib
+
+# Logging & Monitoring
+tqdm
+
+# Deployment
+gunicorn
+
+# Optional
+requests
+
+
+ipykernel
