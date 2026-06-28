@@ -1,7 +1,7 @@
 EfficientNetB0 Head Training Results
 ==================================================
 
-Best Epoch: 15
-Best Recall: 0.8431
-Best F1: 0.8412
-Final Val Loss: 0.5083
+Best Epoch: 35
+Best Recall: 0.8326
+Best F1: 0.8287
+Final Val Loss: 0.7054
