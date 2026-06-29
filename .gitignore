@@ -2,7 +2,6 @@ venv/
 .env
 
 data/
-artifacts/
 logs/
 
 models/*.keras
@@ -13,3 +12,8 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 Thumbs.db
+
+gradcam
+generated_reports
+reports
+templates
