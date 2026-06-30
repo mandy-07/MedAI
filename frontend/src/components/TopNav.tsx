@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 export function TopNav() {
   const [dark, setDark] = useState(false);
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
@@ -20,30 +21,44 @@ export function TopNav() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Backend Status */}
           <div className="hidden md:flex items-center gap-2 px-3 h-9 rounded-lg bg-success-soft border border-success/20">
             <span className="size-1.5 rounded-full bg-success animate-pulse" />
-            <span className="text-[11.5px] font-medium text-success">API · DB · Model Connected</span>
+            <span className="text-[11.5px] font-medium text-success">
+              API · DB · Model Connected
+            </span>
           </div>
+
+          {/* Theme Toggle */}
           <button
             onClick={() => setDark((v) => !v)}
             className="size-9 grid place-items-center rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
             aria-label="Toggle theme"
           >
-            {dark ? <Sun className="size-[17px]" /> : <Moon className="size-[17px]" />}
+            {dark ? (
+              <Sun className="size-[17px]" />
+            ) : (
+              <Moon className="size-[17px]" />
+            )}
           </button>
+
+          {/* Notifications */}
           <button className="size-9 grid place-items-center rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
             <Bell className="size-[17px]" />
           </button>
+
+          {/* About */}
           <button className="size-9 grid place-items-center rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
             <Info className="size-[17px]" />
           </button>
-          <div className="ml-1 flex items-center gap-2.5 pl-2 border-l border-border">
-            <div className="size-9 rounded-full gradient-primary grid place-items-center text-primary-foreground text-sm font-semibold">
-              M
+
+          {/* MedAI Branding */}
+          <div className="ml-2 pl-3 border-l border-border">
+            <div className="text-sm font-semibold text-foreground">
+              MedAI
             </div>
-            <div className="hidden sm:block">
-              <div className="text-sm font-medium leading-tight">Dr. Mandeep</div>
-              <div className="text-[11px] text-muted-foreground">Radiologist</div>
+            <div className="text-[11px] text-muted-foreground">
+              AI Chest X-ray Analysis
             </div>
           </div>
         </div>

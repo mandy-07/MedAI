@@ -70,9 +70,18 @@ app = FastAPI(
 # CORS
 # ==========================================================
 
+# NOTE: Frontend is not deployed yet (will go on Vercel).
+# For now, only local dev origins are allowed.
+# TODO: add the Vercel URL here once the frontend is deployed, e.g.
+#       "https://your-app.vercel.app"
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",   # TanStack Start dev server (Vite default)
+    "http://localhost:3000",   # fallback, in case your dev server uses this port
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # Restrict in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

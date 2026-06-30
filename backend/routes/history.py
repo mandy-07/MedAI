@@ -14,7 +14,7 @@ router = APIRouter(
 
 
 @router.get(
-    "/",
+    "",
     summary="Get Prediction History",
 )
 async def get_prediction_history(
@@ -169,7 +169,7 @@ async def delete_prediction(history_id: str):
 
 
 @router.delete(
-    "/",
+    "",
     summary="Clear Prediction History",
 )
 async def clear_prediction_history():
