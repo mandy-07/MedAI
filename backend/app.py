@@ -75,8 +75,9 @@ app = FastAPI(
 # TODO: add the Vercel URL here once the frontend is deployed, e.g.
 #       "https://your-app.vercel.app"
 ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # TanStack Start dev server (Vite default)
-    "http://localhost:3000",   # fallback, in case your dev server uses this port
+    "http://localhost:8080",   # actual TanStack Start dev server port
+    "http://localhost:5173",   # Vite default, kept as fallback
+    "http://localhost:3000",   # common alternate dev port, kept as fallback
 ]
 
 app.add_middleware(
