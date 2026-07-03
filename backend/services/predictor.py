@@ -3,7 +3,6 @@ import os
 import torch
 
 from backend.schemas.prediction import PredictionResponse
-from backend.services.gradcam_service import gradcam_service
 from backend.services.model_loader import model_loader
 from backend.services.postprocessing import postprocessor
 from backend.services.preprocessing import preprocessor
@@ -22,13 +21,7 @@ class Predictor:
 
     def predict(self, image_path: str) -> PredictionResponse:
         """
-        Run the complete prediction pipeline.
-
-        Args:
-            image_path: Path to the uploaded chest X-ray image.
-
-        Returns:
-            PredictionResponse
+        Run complete prediction pipeline.
         """
 
         try:
@@ -38,63 +31,64 @@ class Predictor:
             if not os.path.exists(image_path):
                 raise FileNotFoundError(f"Image not found: {image_path}")
 
+            logger.info("Prediction started.")
+
             # ------------------------------------------------------
-            # Preprocess image
+            # Preprocess
             # ------------------------------------------------------
             image_tensor = preprocessor.preprocess(image_path)
 
-            # Ensure batch dimension exists
             if image_tensor.dim() == 3:
                 image_tensor = image_tensor.unsqueeze(0)
 
             image_tensor = image_tensor.to(self.device)
 
+            logger.info(
+                "Image preprocessing completed: %s",
+                os.path.basename(image_path),
+            )
+
             # ------------------------------------------------------
-            # Model inference
+            # Inference
             # ------------------------------------------------------
             with torch.no_grad():
                 logits = self.model(image_tensor)
 
+            logger.info("Model inference completed.")
+
             # ------------------------------------------------------
-            # Post-processing
+            # Post Processing
             # ------------------------------------------------------
             prediction: PredictionResponse = postprocessor.process(logits)
 
-            # ------------------------------------------------------
-            # Predicted class index
-            # ------------------------------------------------------
             predicted_index = torch.argmax(logits, dim=1).item()
 
-            # ------------------------------------------------------
-            # Generate Grad-CAM
-            # ------------------------------------------------------
-            try:
-                gradcam_path = gradcam_service.generate(
-                    image_path=image_path,
-                    class_index=predicted_index,
-                )
+            logger.info(
+                "Predicted class index: %d",
+                predicted_index,
+            )
 
-                if gradcam_path:
-                    filename = os.path.basename(gradcam_path)
-                    prediction.gradcam_url = f"/gradcam/{filename}"
-                else:
-                    prediction.gradcam_url = None
+            # ======================================================
+            # TEMPORARILY DISABLE GRAD-CAM
+            # ======================================================
 
-            except Exception as e:
-                logger.warning("Grad-CAM generation failed: %s", e)
-                prediction.gradcam_url = None
+            logger.warning(
+                "Grad-CAM temporarily disabled for Render debugging."
+            )
+
+            prediction.gradcam_url = None
+
+            # ======================================================
 
             logger.info(
-                "Prediction completed successfully. Diagnosis: %s",
-                prediction.diagnosis,
+                "Prediction completed successfully."
             )
 
             return prediction
 
-        except Exception as e:
-            logger.exception("Prediction failed: %s", e)
+        except Exception:
+            logger.exception("Prediction pipeline failed.")
             raise
 
 
-# Singleton instance
 predictor = Predictor()

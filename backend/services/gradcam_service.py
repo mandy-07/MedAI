@@ -1,9 +1,11 @@
 from pathlib import Path
 from uuid import uuid4
+import gc
 import time
 
 import cv2
 import numpy as np
+import torch
 from PIL import Image
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import (
@@ -21,18 +23,15 @@ from backend.utils.logger import logger
 
 class GradCAMService:
     """
-    Service for generating Grad-CAM visualizations
-    for model predictions.
+    Generates Grad-CAM visualizations for chest X-ray predictions.
     """
 
     def __init__(self):
         self.model = model_loader.get_model()
         self.device = model_loader.get_device()
 
-        # Last convolutional layer of EfficientNet-B0
-        self.target_layers = [
-            self.model.features[-1]
-        ]
+        # EfficientNet-B0 final convolution block
+        self.target_layers = [self.model.features[-1]]
 
         Path(settings.GRADCAM_DIR).mkdir(
             parents=True,
@@ -44,35 +43,25 @@ class GradCAMService:
         image_path: str,
         class_index: int,
     ) -> str:
-        """
-        Generate a Grad-CAM visualization.
 
-        Args:
-            image_path: Path to the original image.
-            class_index: Predicted class index.
+        start = time.perf_counter()
 
-        Returns:
-            Path to the generated Grad-CAM image.
-        """
+        image_path = Path(image_path)
 
-        start_time = time.perf_counter()
-
-        try:
-            image_path = Path(image_path)
-
-            if not image_path.exists():
-                raise FileNotFoundError(
-                    f"Image not found: {image_path}"
-                )
-
-            logger.info(
-                "Generating Grad-CAM | Image=%s | Class=%d",
-                image_path.name,
-                class_index,
+        if not image_path.exists():
+            raise FileNotFoundError(
+                f"Image not found: {image_path}"
             )
 
-            image = Image.open(image_path).convert("RGB")
+        logger.info(
+            "Generating Grad-CAM | Image=%s | Class=%d",
+            image_path.name,
+            class_index,
+        )
 
+        try:
+
+            image = Image.open(image_path).convert("RGB")
             image = image.resize(
                 (
                     settings.IMAGE_SIZE,
@@ -95,15 +84,17 @@ class GradCAMService:
                 ClassifierOutputTarget(class_index)
             ]
 
-            with GradCAM(
+            cam = GradCAM(
                 model=self.model,
                 target_layers=self.target_layers,
-            ) as cam:
+            )
 
-                grayscale_cam = cam(
-                    input_tensor=input_tensor,
-                    targets=targets,
-                )[0]
+            grayscale_cam = cam(
+                input_tensor=input_tensor,
+                targets=targets,
+            )
+
+            grayscale_cam = grayscale_cam[0]
 
             visualization = show_cam_on_image(
                 rgb_img,
@@ -128,22 +119,36 @@ class GradCAMService:
 
             if not success:
                 raise RuntimeError(
-                    "Failed to save Grad-CAM image."
+                    "Unable to save Grad-CAM image."
                 )
 
             logger.info(
-                "Grad-CAM saved: %s (%.2fs)",
+                "Grad-CAM saved successfully: %s (%.2fs)",
                 output_path,
-                time.perf_counter() - start_time,
+                time.perf_counter() - start,
             )
 
             return str(output_path)
 
         except Exception:
-            logger.exception(
-                "Grad-CAM generation failed."
-            )
+            logger.exception("Grad-CAM generation failed.")
             raise
+
+        finally:
+            try:
+                del input_tensor
+            except Exception:
+                pass
+
+            try:
+                del cam
+            except Exception:
+                pass
+
+            gc.collect()
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
 gradcam_service = GradCAMService()
