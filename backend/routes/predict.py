@@ -50,36 +50,63 @@ async def predict(
     Predict lung disease from an uploaded chest X-ray.
     """
 
+    logger.info("=" * 80)
+    logger.info("PREDICT ENDPOINT HIT")
+    logger.info("Filename: %s", file.filename)
+    logger.info("Content-Type: %s", file.content_type)
+
     if not file.filename:
+        logger.error("No filename received.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No file uploaded.",
         )
 
+    logger.info("Validating file extension...")
+
     suffix = Path(file.filename).suffix.lower()
 
     if suffix not in ALLOWED_EXTENSIONS:
+        logger.error("Invalid extension: %s", suffix)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only JPG, JPEG, and PNG images are supported.",
         )
 
+    logger.info("Extension validation passed.")
+
+    logger.info("Validating content type...")
+
     if file.content_type not in ALLOWED_CONTENT_TYPES:
+        logger.error("Invalid content type: %s", file.content_type)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid image format.",
         )
 
+    logger.info("Content type validation passed.")
+
     # --------------------------------------------------
     # Validate upload size
     # --------------------------------------------------
+
+    logger.info("Reading uploaded file...")
+
     contents = await file.read()
 
+    logger.info(
+        "Uploaded file size: %.2f MB",
+        len(contents) / (1024 * 1024),
+    )
+
     if len(contents) > MAX_FILE_SIZE:
+        logger.error("Image exceeds maximum upload size.")
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="Image size exceeds the 10 MB limit.",
         )
+
+    logger.info("Upload size validation passed.")
 
     # Reset file pointer after reading
     file.file.seek(0)
@@ -91,6 +118,9 @@ async def predict(
         # --------------------------------------------------
         # Save uploaded image
         # --------------------------------------------------
+
+        logger.info("Saving uploaded image...")
+
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
@@ -99,9 +129,14 @@ async def predict(
         # --------------------------------------------------
         # Run prediction
         # --------------------------------------------------
+
+        logger.info("Calling predictor.predict()...")
+
         prediction = predictor.predict(str(image_path))
 
         logger.info("Prediction completed successfully.")
+
+        logger.info("Returning API response.")
 
         return prediction
 
@@ -117,14 +152,19 @@ async def predict(
         )
 
     finally:
+        logger.info("Cleaning up uploaded file...")
+
         await file.close()
 
         try:
             if image_path.exists():
                 image_path.unlink()
+                logger.info("Temporary upload removed.")
         except Exception as cleanup_error:
             logger.warning(
                 "Failed to remove temporary upload %s: %s",
                 image_path,
                 cleanup_error,
             )
+
+        logger.info("=" * 80)
