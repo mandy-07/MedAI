@@ -22,11 +22,7 @@ class PatientInfo(BaseModel):
 
     gender: Literal["Male", "Female", "Other"]
 
-    referring_doctor: Optional[str] = Field(
-        default=None,
-        max_length=100
-    )
-
+    
     clinical_history: Optional[str] = Field(
         default=None,
         max_length=1000

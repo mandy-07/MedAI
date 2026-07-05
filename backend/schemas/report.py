@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -9,13 +9,7 @@ class PatientInfo(BaseModel):
     Patient information included in the medical report.
     """
 
-    patient_id: Optional[str] = Field(
-        default=None,
-        description="Optional patient identifier.",
-        example="PAT-001",
-    )
-
-    name: str = Field(
+    patient_name: str = Field(
         ...,
         min_length=2,
         max_length=100,
@@ -112,12 +106,14 @@ class ReportRequest(BaseModel):
 
     original_image_path: Optional[str] = Field(
         default=None,
-        description="Optional path to the uploaded X-ray image.",
+        description="Optional path or URL of the uploaded X-ray image.",
+        example="https://medai-0w3x.onrender.com/uploads/sample_xray.png",
     )
 
-    gradcam_path: Optional[str] = Field(
+    gradcam_url: Optional[str] = Field(
         default=None,
-        description="Optional path to the generated Grad-CAM image.",
+        description="Optional URL of the generated Grad-CAM image.",
+        example="https://medai-0w3x.onrender.com/gradcam/a5d18ed6443a4da78c327bdc35629b55.png",
     )
 
     notes: Optional[str] = Field(
@@ -147,10 +143,10 @@ class ReportResponse(BaseModel):
     report_url: str = Field(
         ...,
         description="Frontend-accessible URL of the generated PDF report.",
-        example="/reports/report_a7b93c.pdf",
+        example="https://medai-0w3x.onrender.com/reports/report_a7b93c.pdf",
     )
 
     generated_at: datetime = Field(
-        default_factory=datetime.now,
-        description="Timestamp when the report was generated.",
+        default_factory=lambda: datetime.now(UTC),
+        description="UTC timestamp when the report was generated.",
     )
