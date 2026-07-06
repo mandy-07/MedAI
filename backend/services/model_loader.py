@@ -61,9 +61,11 @@ class ModelLoader:
         Build EfficientNet-B0 exactly as used during training.
         """
 
-        model = models.efficientnet_b0(
-            weights=models.EfficientNet_B0_Weights.DEFAULT
-        )
+        # weights=None: we immediately overwrite every layer with
+        # our own trained state_dict below, so downloading the
+        # ImageNet-pretrained weights here is wasted network I/O
+        # and slows down every cold start on Render.
+        model = models.efficientnet_b0(weights=None)
 
         in_features = model.classifier[1].in_features
 
@@ -117,6 +119,7 @@ class ModelLoader:
         checkpoint = torch.load(
             model_path,
             map_location=self.device,
+            weights_only=True
         )
 
         # Support both checkpoint formats

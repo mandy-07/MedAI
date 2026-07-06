@@ -1,4 +1,6 @@
 import os
+import gc
+import ctypes
 
 import torch
 
@@ -9,6 +11,17 @@ from backend.services.model_loader import model_loader
 from backend.services.postprocessing import postprocessor
 from backend.services.preprocessing import preprocessor
 from backend.utils.logger import logger
+
+
+def _release_memory():
+    """Force Python + glibc to actually give memory back to the OS."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 
 class Predictor:
@@ -76,6 +89,14 @@ class Predictor:
             )
 
             # ------------------------------------------------------
+            # Free predict-pass tensors BEFORE Grad-CAM's own
+            # forward+backward pass starts — otherwise both
+            # passes' memory overlaps at peak.
+            # ------------------------------------------------------
+            del image_tensor, logits
+            _release_memory()
+
+            # ------------------------------------------------------
             # Grad-CAM
             # ------------------------------------------------------
             prediction.gradcam_url = None
@@ -112,6 +133,12 @@ class Predictor:
             except Exception:
                 logger.exception("Grad-CAM generation failed.")
                 prediction.gradcam_url = None
+            finally:
+                # Grad-CAM's own tensors/hooks are cleaned up
+                # inside gradcam_service now, but trim again here
+                # since this is the highest-water-mark point in
+                # the whole request.
+                _release_memory()
 
             logger.info(
                 "Prediction completed successfully. Diagnosis=%s Confidence=%.2f%%",

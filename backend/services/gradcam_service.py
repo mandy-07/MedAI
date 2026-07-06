@@ -1,9 +1,12 @@
 from pathlib import Path
 from uuid import uuid4
 import time
+import gc
+import ctypes
 
 import cv2
 import numpy as np
+import torch
 from PIL import Image
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import (
@@ -19,6 +22,17 @@ from backend.services.model_loader import model_loader
 from backend.utils.logger import logger
 
 
+def _release_memory():
+    """Force Python + glibc to actually give memory back to the OS."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass  # not on glibc/Linux, safe to ignore
+
+
 class GradCAMService:
     """
     Service for generating Grad-CAM visualizations
@@ -28,6 +42,7 @@ class GradCAMService:
     def __init__(self):
         self.model = model_loader.get_model()
         self.device = model_loader.get_device()
+        self.model.eval()
 
         # Last convolutional layer of EfficientNet-B0
         self.target_layers = [
@@ -56,6 +71,8 @@ class GradCAMService:
         """
 
         start_time = time.perf_counter()
+        cam = None
+        input_tensor = None
 
         try:
             image_path = Path(image_path)
@@ -72,17 +89,12 @@ class GradCAMService:
             )
 
             image = Image.open(image_path).convert("RGB")
-
             image = image.resize(
-                (
-                    settings.IMAGE_SIZE,
-                    settings.IMAGE_SIZE,
-                )
+                (settings.IMAGE_SIZE, settings.IMAGE_SIZE)
             )
 
             rgb_img = (
-                np.array(image).astype(np.float32)
-                / 255.0
+                np.array(image).astype(np.float32) / 255.0
             )
 
             input_tensor = preprocess_image(
@@ -91,19 +103,26 @@ class GradCAMService:
                 std=[0.229, 0.224, 0.225],
             ).to(self.device)
 
-            targets = [
-                ClassifierOutputTarget(class_index)
-            ]
+            targets = [ClassifierOutputTarget(class_index)]
 
-            with GradCAM(
+            cam = GradCAM(
                 model=self.model,
                 target_layers=self.target_layers,
-            ) as cam:
+            )
+            grayscale_cam = cam(
+                input_tensor=input_tensor,
+                targets=targets,
+            )[0]
 
-                grayscale_cam = cam(
-                    input_tensor=input_tensor,
-                    targets=targets,
-                )[0]
+            # release hooks + internal activation/gradient
+            # buffers as early as possible, before the
+            # (also memory-heavy) image-writing step below
+            cam.release()
+            del cam
+            cam = None
+            del input_tensor
+            input_tensor = None
+            _release_memory()
 
             visualization = show_cam_on_image(
                 rgb_img,
@@ -112,18 +131,11 @@ class GradCAMService:
             )
 
             filename = f"{uuid4().hex}.png"
-
-            output_path = (
-                Path(settings.GRADCAM_DIR)
-                / filename
-            )
+            output_path = Path(settings.GRADCAM_DIR) / filename
 
             success = cv2.imwrite(
                 str(output_path),
-                cv2.cvtColor(
-                    visualization,
-                    cv2.COLOR_RGB2BGR,
-                ),
+                cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR),
             )
 
             if not success:
@@ -140,10 +152,18 @@ class GradCAMService:
             return str(output_path)
 
         except Exception:
-            logger.exception(
-                "Grad-CAM generation failed."
-            )
+            logger.exception("Grad-CAM generation failed.")
             raise
+        finally:
+            # belt-and-suspenders: guarantee hooks/tensors are
+            # gone even if an exception fired mid-way
+            if cam is not None:
+                try:
+                    cam.release()
+                except Exception:
+                    pass
+            del cam, input_tensor
+            _release_memory()
 
 
 gradcam_service = GradCAMService()
