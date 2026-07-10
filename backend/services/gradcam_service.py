@@ -3,6 +3,8 @@ from uuid import uuid4
 import time
 import gc
 import ctypes
+import psutil
+import os
 
 import cv2
 import numpy as np
@@ -31,6 +33,21 @@ def _release_memory():
         ctypes.CDLL("libc.so.6").malloc_trim(0)
     except Exception:
         pass  # not on glibc/Linux, safe to ignore
+
+
+def _log_memory(stage: str):
+    """
+    Log current RAM usage of this process.
+    """
+    process = psutil.Process(os.getpid())
+
+    ram_mb = process.memory_info().rss / 1024 / 1024
+
+    logger.info(
+        "[MEMORY] %-35s %.2f MB",
+        stage,
+        ram_mb,
+    )
 
 
 class GradCAMService:
@@ -72,6 +89,7 @@ class GradCAMService:
 
         start_time = time.perf_counter()
         cam = None
+        _log_memory("GradCAM Started")
         input_tensor = None
 
         try:
@@ -89,9 +107,12 @@ class GradCAMService:
             )
 
             image = Image.open(image_path).convert("RGB")
+            _log_memory("Image Loaded")
+
             image = image.resize(
                 (settings.IMAGE_SIZE, settings.IMAGE_SIZE)
             )
+            _log_memory("Image Resized")
 
             rgb_img = (
                 np.array(image).astype(np.float32) / 255.0
@@ -102,33 +123,47 @@ class GradCAMService:
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225],
             ).to(self.device)
+            _log_memory("Input Tensor Created")
 
             targets = [ClassifierOutputTarget(class_index)]
+
+            _log_memory("Before GradCAM Object")
 
             cam = GradCAM(
                 model=self.model,
                 target_layers=self.target_layers,
             )
+
+            _log_memory("After GradCAM Object")
+
+            _log_memory("Before CAM Forward/Backward")
             grayscale_cam = cam(
                 input_tensor=input_tensor,
                 targets=targets,
             )[0]
 
+            _log_memory("After CAM Forward/Backward")
+
             # release hooks + internal activation/gradient
             # buffers as early as possible, before the
             # (also memory-heavy) image-writing step below
             cam.release()
+            _log_memory("After CAM Release")
             del cam
             cam = None
             del input_tensor
             input_tensor = None
             _release_memory()
+            _release_memory()
 
+            _log_memory("After Garbage Collection")
             visualization = show_cam_on_image(
                 rgb_img,
                 grayscale_cam,
                 use_rgb=True,
             )
+            _log_memory("After Visualization")
+
 
             filename = f"{uuid4().hex}.png"
             output_path = Path(settings.GRADCAM_DIR) / filename
@@ -137,6 +172,7 @@ class GradCAMService:
                 str(output_path),
                 cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR),
             )
+            _log_memory("After Image Saved")
 
             if not success:
                 raise RuntimeError(

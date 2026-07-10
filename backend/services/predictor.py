@@ -1,12 +1,16 @@
 import os
 import gc
 import ctypes
+import psutil
 
 import torch
 
 from backend.config import settings
 from backend.schemas.prediction import PredictionResponse
-from backend.services.gradcam_service import gradcam_service
+from backend.services.gradcam_service import (
+    gradcam_service,
+    _log_memory,
+)
 from backend.services.model_loader import model_loader
 from backend.services.postprocessing import postprocessor
 from backend.services.preprocessing import preprocessor
@@ -64,6 +68,8 @@ class Predictor:
 
             logger.info("Image preprocessing completed: %s",
                         os.path.basename(image_path))
+            
+            _log_memory("Predictor: After Preprocessing")
 
             # ------------------------------------------------------
             # Model inference
@@ -72,6 +78,7 @@ class Predictor:
                 logits = self.model(image_tensor)
 
             logger.info("Model inference completed.")
+            _log_memory("Predictor: After Inference")
 
             # ------------------------------------------------------
             # Post-processing
@@ -93,8 +100,11 @@ class Predictor:
             # forward+backward pass starts — otherwise both
             # passes' memory overlaps at peak.
             # ------------------------------------------------------
+            _log_memory("Predictor: Before Cleanup")
+
             del image_tensor, logits
             _release_memory()
+            _log_memory("Predictor: After Cleanup")
 
             # ------------------------------------------------------
             # Grad-CAM
@@ -102,6 +112,8 @@ class Predictor:
             prediction.gradcam_url = None
 
             try:
+                _log_memory("Predictor: Before GradCAM")
+
                 logger.info(
                     "Generating Grad-CAM | Image=%s | Class=%d",
                     os.path.basename(image_path),
@@ -112,6 +124,7 @@ class Predictor:
                     image_path=image_path,
                     class_index=predicted_index,
                 )
+                _log_memory("Predictor: After GradCAM")
 
                 if gradcam_path and os.path.exists(gradcam_path):
                     filename = os.path.basename(gradcam_path)
@@ -125,12 +138,16 @@ class Predictor:
                         prediction.gradcam_url,
                     )
 
+                    
+
+
                 else:
                     logger.warning(
                         "Grad-CAM generation returned None."
                     )
 
             except Exception:
+                _log_memory("Predictor: GradCAM Exception")
                 logger.exception("Grad-CAM generation failed.")
                 prediction.gradcam_url = None
             finally:
@@ -139,6 +156,7 @@ class Predictor:
                 # since this is the highest-water-mark point in
                 # the whole request.
                 _release_memory()
+                _log_memory("Predictor: Final Cleanup")
 
             logger.info(
                 "Prediction completed successfully. Diagnosis=%s Confidence=%.2f%%",
