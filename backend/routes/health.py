@@ -64,7 +64,6 @@ async def health():
     overall_status = (
         "healthy"
         if database_status == "connected"
-        and model_status == "loaded"
         else "unhealthy"
     )
 
