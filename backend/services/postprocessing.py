@@ -5,7 +5,7 @@ from backend.schemas.prediction import (
     PredictionResponse,
     PneumoniaSubtype,
 )
-from backend.services.model_loader import model_loader
+from backend.services.model_loader import get_model_loader
 
 
 class PostProcessor:
@@ -14,7 +14,12 @@ class PostProcessor:
     """
 
     def __init__(self):
-        self.class_names = model_loader.get_class_names()
+        self.class_names = None
+
+    def _get_class_names(self) -> list[str]:
+        if self.class_names is None:
+            self.class_names = get_model_loader().get_class_names()
+        return self.class_names
 
     # ==========================================================
     # Risk Assessment
@@ -99,6 +104,8 @@ class PostProcessor:
         logits: torch.Tensor,
     ) -> PredictionResponse:
 
+        class_names = self._get_class_names()
+
         probabilities = torch.softmax(
             logits,
             dim=1,
@@ -107,7 +114,7 @@ class PostProcessor:
         probability_dict = {
             cls: round(prob.item() * 100, 2)
             for cls, prob in zip(
-                self.class_names,
+                class_names,
                 probabilities,
             )
         }
@@ -120,7 +127,7 @@ class PostProcessor:
             probabilities
         ).item()
 
-        predicted_class = self.class_names[
+        predicted_class = class_names[
             predicted_index
         ]
 
@@ -178,7 +185,7 @@ class PostProcessor:
             probabilities,
             k=min(
                 3,
-                len(self.class_names),
+                len(class_names),
             ),
         )
 
@@ -191,7 +198,7 @@ class PostProcessor:
 
             top_predictions.append(
                 PredictionItem(
-                    disease=self.class_names[
+                    disease=class_names[
                         index.item()
                     ],
                     confidence=round(

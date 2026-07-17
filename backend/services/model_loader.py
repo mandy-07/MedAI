@@ -191,7 +191,21 @@ class ModelLoader:
 
 
 # ==========================================================
-# Singleton Instance
+# Lazy Singleton Accessor
 # ==========================================================
 
-model_loader = ModelLoader()
+_model_loader: ModelLoader | None = None
+
+
+def get_model_loader() -> ModelLoader:
+    """
+    Return the singleton ModelLoader, creating it on first call.
+
+    This avoids loading ~100 MB of model weights at import time
+    (i.e. on every Render cold-start), deferring it until the
+    first actual prediction request.
+    """
+    global _model_loader
+    if _model_loader is None:
+        _model_loader = ModelLoader()
+    return _model_loader

@@ -1,17 +1,25 @@
+"""
+backend/services/predictor.py
+
+Full prediction pipeline: preprocess → infer → postprocess → GradCAM.
+
+Memory-optimised: uses lazy model loader, functional gradcam,
+and aggressive tensor cleanup between stages.
+"""
+
 import os
 import gc
 import ctypes
-import psutil
 
 import torch
 
 from backend.config import settings
 from backend.schemas.prediction import PredictionResponse
 from backend.services.gradcam_service import (
-    gradcam_service,
+    generate_gradcam,
     _log_memory,
 )
-from backend.services.model_loader import model_loader
+from backend.services.model_loader import get_model_loader
 from backend.services.postprocessing import postprocessor
 from backend.services.preprocessing import preprocessor
 from backend.utils.logger import logger
@@ -34,9 +42,17 @@ class Predictor:
     """
 
     def __init__(self):
-        self.model = model_loader.get_model()
-        self.device = model_loader.get_device()
-        self.model.eval()
+        # Defer model loading — the lazy loader handles it.
+        self._model = None
+        self._device = None
+
+    def _ensure_model(self):
+        """Load model on first predict call, not at import time."""
+        if self._model is None:
+            loader = get_model_loader()
+            self._model = loader.get_model()
+            self._device = loader.get_device()
+            self._model.eval()
 
     def predict(self, image_path: str) -> PredictionResponse:
         """
@@ -56,6 +72,8 @@ class Predictor:
             if not os.path.exists(image_path):
                 raise FileNotFoundError(f"Image not found: {image_path}")
 
+            self._ensure_model()
+
             # ------------------------------------------------------
             # Preprocess image
             # ------------------------------------------------------
@@ -64,18 +82,18 @@ class Predictor:
             if image_tensor.dim() == 3:
                 image_tensor = image_tensor.unsqueeze(0)
 
-            image_tensor = image_tensor.to(self.device)
+            image_tensor = image_tensor.to(self._device)
 
             logger.info("Image preprocessing completed: %s",
                         os.path.basename(image_path))
-            
+
             _log_memory("Predictor: After Preprocessing")
 
             # ------------------------------------------------------
             # Model inference
             # ------------------------------------------------------
             with torch.no_grad():
-                logits = self.model(image_tensor)
+                logits = self._model(image_tensor)
 
             logger.info("Model inference completed.")
             _log_memory("Predictor: After Inference")
@@ -120,7 +138,7 @@ class Predictor:
                     predicted_index,
                 )
 
-                gradcam_path = gradcam_service.generate(
+                gradcam_path = generate_gradcam(
                     image_path=image_path,
                     class_index=predicted_index,
                 )
@@ -138,9 +156,6 @@ class Predictor:
                         prediction.gradcam_url,
                     )
 
-                    
-
-
                 else:
                     logger.warning(
                         "Grad-CAM generation returned None."
@@ -152,7 +167,7 @@ class Predictor:
                 prediction.gradcam_url = None
             finally:
                 # Grad-CAM's own tensors/hooks are cleaned up
-                # inside gradcam_service now, but trim again here
+                # inside generate_gradcam now, but trim again here
                 # since this is the highest-water-mark point in
                 # the whole request.
                 _release_memory()

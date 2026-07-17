@@ -5,7 +5,7 @@ Health Check Routes
 from fastapi import APIRouter, status
 
 from backend.database import mongodb
-from backend.services.model_loader import model_loader
+from backend.services.model_loader import _model_loader as _ml_ref
 
 router = APIRouter(
     tags=["Health"],
@@ -54,7 +54,10 @@ async def health():
 
     model_status = (
         "loaded"
-        if model_loader.model is not None
+        if (
+            _ml_ref is not None
+            and _ml_ref.model is not None
+        )
         else "not_loaded"
     )
 

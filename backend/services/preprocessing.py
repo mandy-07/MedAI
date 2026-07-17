@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 from PIL import Image
 
-from backend.services.model_loader import model_loader
+from backend.services.model_loader import get_model_loader
 from backend.utils.logger import logger
 
 
@@ -13,7 +13,7 @@ class ImagePreprocessor:
     """
 
     def __init__(self):
-        self.transform = model_loader.get_transform()
+        self.transform = None
 
     def preprocess(self, image_path: str) -> torch.Tensor:
         """
@@ -33,6 +33,9 @@ class ImagePreprocessor:
                 raise FileNotFoundError(f"Image not found: {image_path}")
 
             image = Image.open(image_path).convert("RGB")
+
+            if self.transform is None:
+                self.transform = get_model_loader().get_transform()
 
             tensor = self.transform(image)
 

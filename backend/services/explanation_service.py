@@ -1,6 +1,6 @@
 from typing import Optional
 
-from backend.services.gradcam_service import gradcam_service
+from backend.services.gradcam_service import generate_gradcam
 from backend.utils.logger import logger
 
 
@@ -9,9 +9,6 @@ class ExplanationService:
     Service responsible for generating explainability outputs
     using Grad-CAM.
     """
-
-    def __init__(self):
-        self.gradcam = gradcam_service
 
     def generate_explanation(
         self,
@@ -32,7 +29,7 @@ class ExplanationService:
 
         try:
 
-            gradcam_path = self.gradcam.generate(
+            gradcam_path = generate_gradcam(
                 image_path=image_path,
                 class_index=class_index,
             )
@@ -56,4 +53,4 @@ class ExplanationService:
 # Singleton
 # ==========================================================
 
-explanation_service = ExplanationService()
+explanation_service = ExplanationService()

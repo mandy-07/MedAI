@@ -1,5 +1,4 @@
 from pathlib import Path
-import shutil
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
@@ -90,41 +89,38 @@ async def predict(
     # Validate upload size
     # --------------------------------------------------
 
-    logger.info("Reading uploaded file...")
-
-    contents = await file.read()
-
-    logger.info(
-        "Uploaded file size: %.2f MB",
-        len(contents) / (1024 * 1024),
-    )
-
-    if len(contents) > MAX_FILE_SIZE:
-        logger.error("Image exceeds maximum upload size.")
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Image size exceeds the 10 MB limit.",
-        )
-
-    logger.info("Upload size validation passed.")
-
-    # Reset file pointer after reading
-    file.file.seek(0)
+    # --------------------------------------------------
+    # Stream upload to disk and validate size on-the-fly
+    # --------------------------------------------------
 
     filename = f"{uuid.uuid4().hex}{suffix}"
     image_path = Path(settings.UPLOAD_DIR) / filename
 
+    logger.info("Streaming uploaded file to disk...")
+
     try:
-        # --------------------------------------------------
-        # Save uploaded image
-        # --------------------------------------------------
-
-        logger.info("Saving uploaded image...")
-
+        total_size = 0
         with open(image_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            # Read in chunks of 64 KB
+            while chunk := await file.read(64 * 1024):
+                total_size += len(chunk)
+                if total_size > MAX_FILE_SIZE:
+                    logger.error("Uploaded file exceeds 10 MB limit.")
+                    # Clean up the partial file
+                    buffer.close()
+                    if image_path.exists():
+                        image_path.unlink()
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="Image size exceeds the 10 MB limit.",
+                    )
+                buffer.write(chunk)
 
-        logger.info("Image uploaded successfully: %s", image_path)
+        logger.info(
+            "Uploaded file saved successfully (size: %.2f MB): %s",
+            total_size / (1024 * 1024),
+            image_path,
+        )
 
         # --------------------------------------------------
         # Run prediction
