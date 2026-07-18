@@ -33,7 +33,8 @@ class HistoryService:
             return document
 
         document = document.copy()
-        document["id"] = str(document.pop("_id"))
+        # Keep _id as a string (frontend HistoryItem interface uses _id)
+        document["_id"] = str(document["_id"])
 
         return document
 

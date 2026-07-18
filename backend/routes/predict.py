@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from backend.config import settings
 from backend.schemas.prediction import PredictionResponse
 from backend.services.predictor import predictor
+from backend.services.history_service import history_service
 from backend.utils.logger import logger
 
 router = APIRouter(
@@ -131,6 +132,37 @@ async def predict(
         prediction = predictor.predict(str(image_path))
 
         logger.info("Prediction completed successfully.")
+
+        # --------------------------------------------------
+        # Auto-save to history (patient info added when report is generated)
+        # --------------------------------------------------
+        try:
+            gradcam_url = prediction.gradcam_url if hasattr(prediction, "gradcam_url") else None
+            full_gradcam_url = (
+                f"{settings.BASE_URL}{gradcam_url}" if gradcam_url else None
+            )
+            await history_service.save_prediction(
+                patient={
+                    "patient_name": "Unknown",
+                    "age": 0,
+                    "gender": "Other",
+                    "examination_date": None,
+                },
+                prediction={
+                    "diagnosis": prediction.diagnosis,
+                    "predicted_class": prediction.predicted_class,
+                    "confidence": prediction.confidence,
+                    "risk_level": prediction.risk_level,
+                    "recommendation": prediction.recommendation,
+                    "bacterial_probability": prediction.subtypes.bacterial if prediction.subtypes else None,
+                    "viral_probability": prediction.subtypes.viral if prediction.subtypes else None,
+                },
+                report_path=None,
+                gradcam_path=full_gradcam_url,
+            )
+            logger.info("Prediction auto-saved to history.")
+        except Exception as hist_err:
+            logger.warning("Could not auto-save to history: %s", hist_err)
 
         logger.info("Returning API response.")
 

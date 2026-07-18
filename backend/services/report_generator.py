@@ -85,8 +85,7 @@ class ReportGenerator:
             )
 
             patient_data = [
-                ["Patient Name", request.patient.name],
-                ["Patient ID", request.patient.patient_id or "N/A"],
+                ["Patient Name", request.patient.patient_name],
                 ["Age", str(request.patient.age)],
                 ["Gender", request.patient.gender],
                 ["Examination Date", str(request.patient.examination_date)],
@@ -241,10 +240,7 @@ class ReportGenerator:
                 )
                 elements.append(Spacer(1, 0.2 * inch))
 
-            if (
-                request.gradcam_path
-                and Path(request.gradcam_path).exists()
-            ):
+            if request.gradcam_url:
                 elements.append(
                     Paragraph(
                         "<b>Grad-CAM Visualization</b>",
@@ -252,10 +248,9 @@ class ReportGenerator:
                     )
                 )
                 elements.append(
-                    Image(
-                        request.gradcam_path,
-                        width=4 * inch,
-                        height=4 * inch,
+                    Paragraph(
+                        f"Grad-CAM image: {request.gradcam_url}",
+                        self.body_style,
                     )
                 )
                 elements.append(Spacer(1, 0.2 * inch))

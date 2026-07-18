@@ -141,7 +141,11 @@ function HistoryPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p, i) => {
             const risk = getRisk(p);
-            const gradcam = p.gradcam_path ? assetUrl(p.gradcam_path) : null;
+            const gradcam = p.gradcam_path
+              ? p.gradcam_path.startsWith("http")
+                ? p.gradcam_path
+                : assetUrl(p.gradcam_path)
+              : null;
             return (
               <motion.div
                 key={p._id}
@@ -252,7 +256,7 @@ function HistoryPage() {
                   <div className="rounded-xl overflow-hidden h-40 bg-slate-900">
                     {selected.gradcam_path ? (
                       <img
-                        src={assetUrl(selected.gradcam_path)}
+                        src={selected.gradcam_path.startsWith("http") ? selected.gradcam_path : assetUrl(selected.gradcam_path)}
                         alt="Grad-CAM"
                         className="h-full w-full object-cover"
                       />
