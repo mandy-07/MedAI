@@ -74,11 +74,22 @@ app = FastAPI(
 # For now, only local dev origins are allowed.
 # TODO: add the Vercel URL here once the frontend is deployed, e.g.
 #       "https://your-app.vercel.app"
+import os as _os
+
+_extra_origin = _os.environ.get("FRONTEND_URL", "")  # e.g. https://medai.vercel.app
+
 ALLOWED_ORIGINS = [
-    "http://localhost:8080",   # actual TanStack Start dev server port
-    "http://localhost:5173",   # Vite default, kept as fallback
-    "http://localhost:3000",   # common alternate dev port, kept as fallback
+    "http://localhost:8080",   # TanStack Start dev port
+    "http://localhost:5173",   # Vite default
+    "http://localhost:3000",   # common alternate
+    "http://localhost:4173",   # Vite preview
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
 ]
+
+if _extra_origin:
+    ALLOWED_ORIGINS.append(_extra_origin)
 
 app.add_middleware(
     CORSMiddleware,
