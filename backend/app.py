@@ -140,10 +140,10 @@ app.mount(
 # ==========================================================
 
 app.include_router(health_router)
-app.include_router(predict_router)
-app.include_router(report_router)
-app.include_router(history_router)
-app.include_router(chatbot_router)
+app.include_router(predict_router, prefix=settings.API_V1_PREFIX)
+app.include_router(report_router, prefix=settings.API_V1_PREFIX)
+app.include_router(history_router, prefix=settings.API_V1_PREFIX)
+app.include_router(chatbot_router, prefix=settings.API_V1_PREFIX)
 
 
 # ==========================================================
