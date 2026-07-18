@@ -134,13 +134,10 @@ async def predict(
         logger.info("Prediction completed successfully.")
 
         # --------------------------------------------------
-        # Auto-save to history (patient info added when report is generated)
+        # Auto-save to history
         # --------------------------------------------------
         try:
             gradcam_url = prediction.gradcam_url if hasattr(prediction, "gradcam_url") else None
-            full_gradcam_url = (
-                f"{settings.BASE_URL}{gradcam_url}" if gradcam_url else None
-            )
             await history_service.save_prediction(
                 patient={
                     "patient_name": "Unknown",
@@ -158,7 +155,8 @@ async def predict(
                     "viral_probability": prediction.subtypes.viral if prediction.subtypes else None,
                 },
                 report_path=None,
-                gradcam_path=full_gradcam_url,
+                # Store the relative path — frontend assetUrl() will build the full URL
+                gradcam_path=gradcam_url,
             )
             logger.info("Prediction auto-saved to history.")
         except Exception as hist_err:

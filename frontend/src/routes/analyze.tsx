@@ -20,7 +20,6 @@ import { predictXray, generateReport, assetUrl } from "@/lib/api";
 import type { BackendPrediction } from "@/lib/types";
 import {
   riskColor, type Prediction, type Diagnosis,
-  loadPredictions, savePredictions,
 } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/analyze")({
@@ -152,10 +151,6 @@ function AnalyzePage() {
       const pred = backendToLocal(backendResult, {
         name, age: Number(age), gender, symptoms,
       });
-      // Save to localStorage for history page
-      const all = loadPredictions();
-      savePredictions([pred, ...all]);
-
       setResult(backendResult);
       setLocalPred(pred);
       setPhase("result");
@@ -194,7 +189,7 @@ function AnalyzePage() {
           bacterial_probability: result.subtypes?.bacterial ?? undefined,
           viral_probability: result.subtypes?.viral ?? undefined,
         },
-        gradcam_url: result.gradcam_url ? assetUrl(result.gradcam_url) : null,
+        gradcam_url: result.gradcam_url ?? null,
         notes: symptoms || null,
       };
       const resp = await generateReport(payload);

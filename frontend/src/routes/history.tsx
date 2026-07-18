@@ -238,7 +238,7 @@ function HistoryPage() {
                 <section>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Diagnosis</p>
                   <p className="font-display text-2xl font-semibold mt-1">{selected.prediction.diagnosis}</p>
-                  {selected.prediction.predicted_class !== selected.prediction.diagnosis && (
+                  {selected.prediction.predicted_class && selected.prediction.predicted_class !== selected.prediction.diagnosis && (
                     <p className="text-sm text-muted-foreground">
                       Model class: <span className="font-medium text-foreground">{selected.prediction.predicted_class}</span>
                     </p>

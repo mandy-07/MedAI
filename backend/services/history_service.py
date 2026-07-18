@@ -36,6 +36,14 @@ class HistoryService:
         # Keep _id as a string (frontend HistoryItem interface uses _id)
         document["_id"] = str(document["_id"])
 
+        # Convert raw filesystem report_path to a relative URL the frontend can use.
+        # e.g. "D:\...\reports\file.pdf" → "/reports/file.pdf"
+        if document.get("report_path"):
+            from pathlib import Path as _Path
+            rp = document["report_path"]
+            if not rp.startswith("/") and not rp.startswith("http"):
+                document["report_path"] = f"/reports/{_Path(rp).name}"
+
         return document
 
     @staticmethod

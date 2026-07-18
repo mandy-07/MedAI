@@ -98,10 +98,21 @@ function AboutPage() {
                 B.Tech Software Engineering · Delhi Technological University
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-1.5" /> GitHub</Button>
-                <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-1.5" /> Live Demo</Button>
-                <Button variant="outline" size="sm"><Book className="h-4 w-4 mr-1.5" /> API Docs</Button>
-                <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-1.5" /> LinkedIn</Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://github.com/mandy-07/Medical-Report-Generator" target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-1.5" /> GitHub
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer">
+                    <Book className="h-4 w-4 mr-1.5" /> API Docs
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://linkedin.com" target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-1.5" /> LinkedIn
+                  </a>
+                </Button>
               </div>
             </div>
           </div>

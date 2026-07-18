@@ -98,6 +98,7 @@ function Dashboard() {
   }, []);
 
   const total = items.length;
+  const reportsCount = items.filter((i) => i.report_path).length;
   const avgConf = items.length
     ? Math.round(items.reduce((a, p) => a + p.prediction.confidence, 0) / items.length)
     : 0;
@@ -155,7 +156,7 @@ function Dashboard() {
       {/* Stats */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={ScanLine} label="Total Analyses" value={total} accent="bg-primary/10 text-primary" />
-        <Stat icon={FileText} label="Reports Generated" value={total} accent="bg-[color:var(--accent)]/15 text-[color:var(--accent)]" />
+        <Stat icon={FileText} label="Reports Generated" value={reportsCount} accent="bg-[color:var(--accent)]/15 text-[color:var(--accent)]" subtitle={`${reportsCount} of ${total} with PDF`} />
         <Stat icon={TrendingUp} label="Avg Confidence" value={avgConf} suffix="%" accent="bg-[color:var(--success)]/15 text-[color:var(--success)]" />
         <Stat
           icon={Activity}
