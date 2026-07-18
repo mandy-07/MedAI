@@ -15,10 +15,27 @@ import type {
   ReportResponse,
 } from "./types";
 
-// Base URL — set VITE_API_URL in .env to override
-const API_BASE =
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "http://localhost:8000/api/v1";
+const getApiBase = () => {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      if (envUrl?.includes("localhost")) {
+        return envUrl.replace("localhost", hostname);
+      }
+      if (envUrl?.includes("127.0.0.1")) {
+        return envUrl.replace("127.0.0.1", hostname);
+      }
+      // If no env is defined, fallback to port 8000 on current hostname
+      if (!envUrl) {
+        return `http://${hostname}:8000/api/v1`;
+      }
+    }
+  }
+  return envUrl ?? "http://localhost:8000/api/v1";
+};
+
+const API_BASE = getApiBase();
 
 // ─── Helpers ───────────────────────────────────────────────
 
