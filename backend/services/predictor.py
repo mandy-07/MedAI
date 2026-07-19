@@ -13,7 +13,6 @@ import ctypes
 
 import torch
 
-from backend.config import settings
 from backend.schemas.prediction import PredictionResponse
 from backend.services.gradcam_service import (
     generate_gradcam,
@@ -147,9 +146,9 @@ class Predictor:
                 if gradcam_path and os.path.exists(gradcam_path):
                     filename = os.path.basename(gradcam_path)
 
-                    prediction.gradcam_url = (
-                        f"{settings.BASE_URL}/gradcam/{filename}"
-                    )
+                    # Use a relative URL so the frontend assetUrl() helper
+                    # builds the correct full URL based on the current API base.
+                    prediction.gradcam_url = f"/gradcam/{filename}"
 
                     logger.info(
                         "Grad-CAM generated successfully: %s",

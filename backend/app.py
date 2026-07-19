@@ -79,31 +79,63 @@ import os as _os
 _extra_origin = _os.environ.get("FRONTEND_URL", "")  # e.g. https://medai.vercel.app
 
 ALLOWED_ORIGINS = [
-    "http://localhost:8080",   # TanStack Start dev port
-    "http://localhost:5173",   # Vite default
-    "http://localhost:3000",   # common alternate
-    "http://localhost:4173",   # Vite preview
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:4173",
     "http://127.0.0.1:8080",
+    "http://127.0.0.1:8081",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:4173",
 ]
 
 if _extra_origin:
     ALLOWED_ORIGINS.append(_extra_origin)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# In development allow ALL origins so any localhost port works.
+# In production, only the explicit list above + FRONTEND_URL is used.
+if settings.DEBUG:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,  # must be False when allow_origins=["*"]
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # ==========================================================
 # Static Files
 # ==========================================================
+
+# ----------------------------------------------------------
+# Grad-CAM Images
+# URL:
+# http://127.0.0.1:8000/gradcam/<image_name>.png
+# ----------------------------------------------------------
+
+app.mount(
+    "/uploads",
+    StaticFiles(
+        directory=str(settings.UPLOAD_DIR),
+    ),
+    name="uploads",
+)
+
 
 # ----------------------------------------------------------
 # Grad-CAM Images

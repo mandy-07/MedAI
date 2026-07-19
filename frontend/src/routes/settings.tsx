@@ -131,7 +131,7 @@ function SettingsPage() {
         <Separator className="my-4" />
         <Row label="API Docs" hint="Interactive Swagger documentation.">
           <a
-            href="http://localhost:8000/docs"
+            href="http://127.0.0.1:8000/docs"
             target="_blank"
             rel="noreferrer"
             className="text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 transition"

@@ -53,12 +53,12 @@ async def health():
     )
 
     model_status = (
-        "loaded"
+        "EfficientNet-B0 (Loaded)"
         if (
             _ml_ref is not None
             and _ml_ref.model is not None
         )
-        else "not_loaded"
+        else "EfficientNet-B0 (Standby)"
     )
 
     overall_status = (

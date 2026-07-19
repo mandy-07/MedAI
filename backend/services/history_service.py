@@ -43,7 +43,11 @@ class HistoryService:
             rp = document["report_path"]
             if not rp.startswith("/") and not rp.startswith("http"):
                 document["report_path"] = f"/reports/{_Path(rp).name}"
-
+        if document.get("gradcam_path"):
+            from pathlib import Path as _Path
+            gp = document["gradcam_path"]
+            if not gp.startswith("/") and not gp.startswith("http"):
+                document["gradcam_path"] = f"/gradcam/{_Path(gp).name}"
         return document
 
     @staticmethod

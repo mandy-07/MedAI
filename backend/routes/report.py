@@ -56,7 +56,7 @@ async def generate_medical_report(
             patient=request.patient.model_dump(mode="json"),
             prediction=request.prediction.model_dump(mode="json"),
             report_path=report_path,
-            gradcam_path=request.gradcam_path,
+            gradcam_path=request.gradcam_url,
         )
 
         logger.info("Prediction history saved successfully.")

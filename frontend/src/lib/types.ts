@@ -16,6 +16,7 @@ export interface BackendPrediction {
   top_predictions: { disease: string; confidence: number }[];
   subtypes: { bacterial: number; viral: number } | null;
   gradcam_url: string | null; // e.g. "/gradcam/abc123.png"
+  report_url?: string | null;
   explanation: string | null;
 }
 

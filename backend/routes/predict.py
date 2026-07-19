@@ -1,7 +1,7 @@
 from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from backend.config import settings
 from backend.schemas.prediction import PredictionResponse
@@ -45,6 +45,10 @@ async def predict(
         ...,
         description="Chest X-ray image in JPG, JPEG, or PNG format (maximum size: 10 MB).",
     ),
+    patient_name: str = Form("Unknown"),
+    age: int = Form(0),
+    gender: str = Form("Other"),
+    symptoms: str | None = Form(None),
 ):
     """
     Predict lung disease from an uploaded chest X-ray.
@@ -136,13 +140,50 @@ async def predict(
         # --------------------------------------------------
         # Auto-save to history
         # --------------------------------------------------
+        # --------------------------------------------------
+        # Auto-generate PDF report and save to history
+        # --------------------------------------------------
+        report_url = None
+        report_path = None
+        gradcam_url = prediction.gradcam_url if hasattr(prediction, "gradcam_url") else None
         try:
-            gradcam_url = prediction.gradcam_url if hasattr(prediction, "gradcam_url") else None
+            from backend.schemas.report import ReportRequest, PatientInfo, PredictionInfo
+            from backend.services.report_generator import ReportGenerator
+
+            report_gen = ReportGenerator()
+            report_req = ReportRequest(
+                patient=PatientInfo(
+                    patient_name=patient_name,
+                    age=age,
+                    gender=gender,
+                ),
+                prediction=PredictionInfo(
+                    diagnosis=prediction.diagnosis,
+                    predicted_class=prediction.predicted_class,
+                    confidence=prediction.confidence,
+                    risk_level=prediction.risk_level,
+                    recommendation=prediction.recommendation,
+                    bacterial_probability=prediction.subtypes.bacterial if prediction.subtypes else None,
+                    viral_probability=prediction.subtypes.viral if prediction.subtypes else None,
+                ),
+                gradcam_url=gradcam_url,
+                notes=symptoms,
+            )
+            report_path = report_gen.generate_report(report_req)
+            if report_path:
+                report_filename = Path(report_path).name
+                report_url = f"/reports/{report_filename}"
+                # Add to response model
+                prediction.report_url = report_url
+        except Exception as rep_err:
+            logger.warning("Could not auto-generate report: %s", rep_err)
+
+        try:
             await history_service.save_prediction(
                 patient={
-                    "patient_name": "Unknown",
-                    "age": 0,
-                    "gender": "Other",
+                    "patient_name": patient_name,
+                    "age": age,
+                    "gender": gender,
                     "examination_date": None,
                 },
                 prediction={
@@ -154,13 +195,12 @@ async def predict(
                     "bacterial_probability": prediction.subtypes.bacterial if prediction.subtypes else None,
                     "viral_probability": prediction.subtypes.viral if prediction.subtypes else None,
                 },
-                report_path=None,
-                # Store the relative path — frontend assetUrl() will build the full URL
+                report_path=report_path,
                 gradcam_path=gradcam_url,
             )
-            logger.info("Prediction auto-saved to history.")
+            logger.info("Prediction history saved successfully.")
         except Exception as hist_err:
-            logger.warning("Could not auto-save to history: %s", hist_err)
+            logger.warning("Could not save to history: %s", hist_err)
 
         logger.info("Returning API response.")
 

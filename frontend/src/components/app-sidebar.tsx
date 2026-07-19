@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   ScanLine,
@@ -7,6 +8,7 @@ import {
   Settings,
   Info,
   Activity,
+  Loader2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -21,6 +23,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { fetchHealth } from "@/lib/api";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -39,6 +42,21 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url));
+  const [online, setOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const h = await fetchHealth();
+        setOnline(h.status === "healthy");
+      } catch {
+        setOnline(false);
+      }
+    };
+    check();
+    const interval = setInterval(check, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -99,13 +117,27 @@ export function AppSidebar() {
       <SidebarFooter className="border-t">
         {!collapsed && (
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--success)] opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--success)]" />
-              </span>
-              <span className="font-medium text-foreground">Backend Connected</span>
-            </div>
+            {online === null ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="font-medium text-muted-foreground">Checking Backend...</span>
+              </div>
+            ) : online ? (
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--success)] opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--success)]" />
+                </span>
+                <span className="font-medium text-foreground">Backend Connected</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+                </span>
+                <span className="font-medium text-destructive">Backend Offline</span>
+              </div>
+            )}
             <p className="mt-1 text-[11px]">EfficientNet-B0 · v1.0.0</p>
           </div>
         )}

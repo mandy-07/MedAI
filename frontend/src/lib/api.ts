@@ -32,7 +32,7 @@ const getApiBase = () => {
       }
     }
   }
-  return envUrl ?? "http://localhost:8000/api/v1";
+  return envUrl ?? "http://127.0.0.1:8000/api/v1";
 };
 
 const API_BASE = getApiBase();
@@ -44,7 +44,21 @@ async function handleResponse<T>(res: Response): Promise<T> {
     let detail = `HTTP ${res.status}`;
     try {
       const body = await res.json();
-      detail = body?.detail ?? detail;
+      if (body?.detail) {
+        if (typeof body.detail === "string") {
+          detail = body.detail;
+        } else if (Array.isArray(body.detail)) {
+          // Format validation error list from FastAPI/Pydantic
+          detail = body.detail
+            .map((err: any) => {
+              const field = err.loc ? err.loc.slice(1).join(".") : "";
+              return `${field ? field + ": " : ""}${err.msg}`;
+            })
+            .join("; ");
+        } else if (typeof body.detail === "object") {
+          detail = JSON.stringify(body.detail);
+        }
+      }
     } catch {
       /* ignore parse errors */
     }
@@ -59,9 +73,20 @@ async function handleResponse<T>(res: Response): Promise<T> {
  * Upload a chest X-ray and receive an AI prediction.
  * POST /predict/
  */
-export async function predictXray(file: File): Promise<BackendPrediction> {
+export async function predictXray(
+  file: File,
+  patientName?: string,
+  age?: number,
+  gender?: string,
+  symptoms?: string
+): Promise<BackendPrediction> {
   const form = new FormData();
   form.append("file", file);
+  if (patientName) form.append("patient_name", patientName);
+  if (age !== undefined) form.append("age", String(age));
+  if (gender) form.append("gender", gender);
+  if (symptoms) form.append("symptoms", symptoms);
+
   const res = await fetch(`${API_BASE}/predict/`, {
     method: "POST",
     body: form,
@@ -144,4 +169,20 @@ export async function fetchHealth(): Promise<HealthResponse> {
   const base = API_BASE.replace(/\/api\/v1\/?$/, "");
   const res = await fetch(`${base}/health`);
   return handleResponse<HealthResponse>(res);
+}
+
+/**
+ * Upload a file to extract its text contents for chatbot context.
+ * POST /chat/extract-text
+ */
+export async function extractText(
+  file: File
+): Promise<{ success: boolean; filename: string; text: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/chat/extract-text`, {
+    method: "POST",
+    body: form,
+  });
+  return handleResponse<{ success: boolean; filename: string; text: string }>(res);
 }

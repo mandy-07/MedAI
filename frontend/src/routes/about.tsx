@@ -104,12 +104,12 @@ function AboutPage() {
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer">
+                  <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer">
                     <Book className="h-4 w-4 mr-1.5" /> API Docs
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <a href="https://linkedin.com" target="_blank" rel="noreferrer">
+                  <a href="https://www.linkedin.com/in/mandeep-panchal-b81165287/" target="_blank" rel="noreferrer">
                     <ExternalLink className="h-4 w-4 mr-1.5" /> LinkedIn
                   </a>
                 </Button>

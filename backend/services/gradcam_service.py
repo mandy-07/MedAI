@@ -141,7 +141,8 @@ def generate_gradcam(image_path: str, class_index: int) -> str:
         _log_memory("After CAM Forward/Backward")
 
         # Release hooks + activation buffers immediately
-        cam.release()
+        if hasattr(cam, "release"):
+            cam.release()
         _log_memory("After CAM Release")
         del cam
         cam = None

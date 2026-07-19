@@ -57,7 +57,27 @@ function HistoryPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+
+    // Read initial query from URL search params
+    const params = new URLSearchParams(window.location.search);
+    const query = params.get("q");
+    if (query) {
+      setQ(query);
+    }
+
+    // Listen for custom search events from TopNav
+    const handleSearchEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setQ(customEvent.detail);
+    };
+
+    window.addEventListener("medai-search", handleSearchEvent);
+    return () => {
+      window.removeEventListener("medai-search", handleSearchEvent);
+    };
+  }, []);
 
   const filtered = useMemo(() => items.filter((p) => {
     const matchQ = !q || p.patient.patient_name.toLowerCase().includes(q.toLowerCase());
@@ -238,7 +258,10 @@ function HistoryPage() {
                 <section>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Diagnosis</p>
                   <p className="font-display text-2xl font-semibold mt-1">{selected.prediction.diagnosis}</p>
-                  {selected.prediction.predicted_class && selected.prediction.predicted_class !== selected.prediction.diagnosis && (
+                  {selected.prediction.predicted_class &&
+                   selected.prediction.predicted_class !== selected.prediction.diagnosis &&
+                   selected.prediction.predicted_class !== "Bacterial Pneumonia" &&
+                   selected.prediction.predicted_class !== "Viral Pneumonia" && (
                     <p className="text-sm text-muted-foreground">
                       Model class: <span className="font-medium text-foreground">{selected.prediction.predicted_class}</span>
                     </p>

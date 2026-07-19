@@ -51,7 +51,7 @@ const STEP_DURATIONS = [800, 600, 1200, 600, 600, 3000, 1200];
 // Map backend diagnosis/risk strings to our frontend Diagnosis type
 function mapDiagnosis(d: string): Diagnosis {
   if (d === "Coronavirus Disease" || d === "Corona Virus Disease") return "Coronavirus Disease";
-  if (d === "Pneumonia") return "Pneumonia";
+  if (d === "Pneumonia" || d === "Bacterial Pneumonia" || d === "Viral Pneumonia") return "Pneumonia";
   if (d === "Tuberculosis") return "Tuberculosis";
   return "Normal";
 }
@@ -144,7 +144,7 @@ function AnalyzePage() {
       }
     })();
 
-    const apiPromise = predictXray(file);
+    const apiPromise = predictXray(file, name, Number(age), gender, symptoms);
 
     try {
       const [backendResult] = await Promise.all([apiPromise, stepPromise]);
@@ -153,6 +153,9 @@ function AnalyzePage() {
       });
       setResult(backendResult);
       setLocalPred(pred);
+      if (backendResult.report_url) {
+        setReportUrl(assetUrl(backendResult.report_url));
+      }
       setPhase("result");
       toast.success("Analysis complete!");
     } catch (err: unknown) {
@@ -172,6 +175,17 @@ function AnalyzePage() {
 
   const handleGenerateReport = async () => {
     if (!result || !localPred) return;
+    if (reportUrl) {
+      window.open(reportUrl, "_blank");
+      return;
+    }
+
+    // Open a blank tab synchronously to prevent the browser popup blocker from blocking it
+    const reportWindow = window.open("", "_blank");
+    if (reportWindow) {
+      reportWindow.document.write("<p style='font-family: sans-serif; padding: 20px; color: #4b5563;'>Generating medical report... Please wait.</p>");
+    }
+
     setReportLoading(true);
     try {
       const payload = {
@@ -195,10 +209,15 @@ function AnalyzePage() {
       const resp = await generateReport(payload);
       const url = assetUrl(resp.report_url);
       setReportUrl(url);
-      // Open in new tab
-      window.open(url, "_blank");
+
+      if (reportWindow) {
+        reportWindow.location.href = url;
+      }
       toast.success("Report generated successfully!");
     } catch (err: unknown) {
+      if (reportWindow) {
+        reportWindow.close();
+      }
       const msg = err instanceof Error ? err.message : "Failed to generate report";
       toast.error(msg);
     } finally {
@@ -366,7 +385,9 @@ function AnalyzePage() {
                     <Badge variant="outline" className={riskColor(riskVal)}>{result.risk_level} Risk</Badge>
                     <span className="text-sm text-muted-foreground">{new Date(localPred.date).toLocaleString()}</span>
                   </div>
-                  {result.predicted_class !== result.diagnosis && (
+                  {result.predicted_class !== result.diagnosis &&
+                   result.predicted_class !== "Bacterial Pneumonia" &&
+                   result.predicted_class !== "Viral Pneumonia" && (
                     <p className="mt-2 text-sm text-muted-foreground">
                       Model class: <span className="font-medium text-foreground">{result.predicted_class}</span>
                     </p>
@@ -381,27 +402,45 @@ function AnalyzePage() {
             <Card className="p-6 shadow-card">
               <h3 className="font-display font-semibold mb-4">Disease Probability</h3>
               <div className="space-y-3">
-                {Object.entries(result.probabilities)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([d, v]) => (
-                    <div key={d}>
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="font-medium">{d}</span>
-                        <span className="tabular-nums text-muted-foreground">{v.toFixed(1)}%</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${v}%` }} transition={{ duration: 0.8, delay: 0.1 }}
-                          className={`h-full rounded-full ${d === result.predicted_class ? "bg-gradient-primary" : "bg-primary/30"}`} />
-                      </div>
-                    </div>
-                  ))}
+                {(() => {
+                  const combinedProbs: Record<string, number> = {};
+                  let pneumoniaSum = 0;
+                  for (const [d, v] of Object.entries(result.probabilities)) {
+                    if (d === "Bacterial Pneumonia" || d === "Viral Pneumonia") {
+                      pneumoniaSum += v;
+                    } else {
+                      combinedProbs[d] = v;
+                    }
+                  }
+                  combinedProbs["Pneumonia"] = pneumoniaSum;
+
+                  return Object.entries(combinedProbs)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([d, v]) => {
+                      const isPredicted = d === "Pneumonia"
+                        ? (result.predicted_class === "Bacterial Pneumonia" || result.predicted_class === "Viral Pneumonia")
+                        : d === result.predicted_class;
+                      return (
+                        <div key={d}>
+                          <div className="flex justify-between text-sm mb-1.5">
+                            <span className="font-medium">{d}</span>
+                            <span className="tabular-nums text-muted-foreground">{v.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${v}%` }} transition={{ duration: 0.8, delay: 0.1 }}
+                              className={`h-full rounded-full ${isPredicted ? "bg-gradient-primary" : "bg-primary/30"}`} />
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
               </div>
-              {result.subtypes && (
+              {(result.subtypes || result.diagnosis === "Pneumonia") && (
                 <div className="mt-4 rounded-xl border bg-muted/40 px-4 py-3 text-sm">
                   <p className="font-medium mb-2">Pneumonia Subtype Breakdown</p>
                   <div className="flex gap-6">
-                    <span>Bacterial: <strong>{result.subtypes.bacterial.toFixed(1)}%</strong></span>
-                    <span>Viral: <strong>{result.subtypes.viral.toFixed(1)}%</strong></span>
+                    <span>Bacterial: <strong>{(result.subtypes?.bacterial ?? result.probabilities["Bacterial Pneumonia"] ?? 0).toFixed(1)}%</strong></span>
+                    <span>Viral: <strong>{(result.subtypes?.viral ?? result.probabilities["Viral Pneumonia"] ?? 0).toFixed(1)}%</strong></span>
                   </div>
                 </div>
               )}
@@ -474,7 +513,7 @@ function AnalyzePage() {
                 disabled={reportLoading}
               >
                 {reportLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                {reportLoading ? "Generating…" : reportUrl ? "Open Report Again" : "Download Medical Report"}
+                {reportLoading ? "Saving & Downloading…" : "Save and Download Report"}
               </Button>
               <Button size="lg" variant="outline" className="rounded-xl" onClick={downloadGradcam} disabled={!result.gradcam_url}>
                 <Download className="mr-2 h-4 w-4" /> Download Grad-CAM

@@ -122,6 +122,12 @@ class PredictionResponse(BaseModel):
         example="/gradcam/8c7e0f4d.png",
     )
 
+    report_url: Optional[str] = Field(
+        default=None,
+        description="Frontend-accessible URL of the auto-generated PDF report.",
+        example="/reports/medical_report_123.pdf",
+    )
+
     explanation: Optional[str] = Field(
         default=None,
         description="AI-generated explanation of the prediction.",

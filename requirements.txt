@@ -63,3 +63,4 @@ python-dotenv
 gunicorn
 
 psutil
+gradio

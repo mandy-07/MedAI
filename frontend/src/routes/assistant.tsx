@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Sparkles, Copy, MessageSquare, Bot, User, AlertCircle } from "lucide-react";
+import { Send, Sparkles, Copy, MessageSquare, Bot, User, AlertCircle, Paperclip, X, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { sendChat } from "@/lib/api";
+import { sendChat, extractText } from "@/lib/api";
 
 export const Route = createFileRoute("/assistant")({
   head: () => ({
@@ -58,19 +58,58 @@ function AssistantPage() {
   const [offline, setOffline] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs, typing]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size exceeds 5 MB limit");
+      return;
+    }
+
+    setUploading(true);
+    const toastId = toast.loading(`Uploading and extracting text from ${file.name}...`);
+    try {
+      const resp = await extractText(file);
+      if (resp.success) {
+        setAttachedFile({
+          name: resp.filename,
+          content: resp.text,
+        });
+        toast.success(`Attached ${resp.filename} successfully!`, { id: toastId });
+      } else {
+        toast.error("Failed to extract text from file.", { id: toastId });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to extract text";
+      toast.error(`Error: ${msg}`, { id: toastId });
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   const send = async (text: string) => {
     if (!text.trim()) return;
+
+    const currentAttachment = attachedFile;
     setMsgs((m) => [...m, { role: "user", content: text }]);
     setInput("");
+    setAttachedFile(null); // Clear attachment from UI once sent
     setTyping(true);
 
     try {
       const resp = await sendChat({
         message: text,
+        report_context: currentAttachment ? currentAttachment.content : null,
         conversation_id: _conversationId,
       });
 
@@ -174,8 +213,49 @@ function AssistantPage() {
           </div>
         )}
 
-        <div className="border-t p-4">
+        <div className="border-t p-4 space-y-3">
+          {attachedFile && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between rounded-lg bg-muted/60 border px-3 py-1.5 text-xs text-muted-foreground w-fit max-w-full"
+            >
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <Paperclip className="h-3 w-3 text-primary shrink-0" />
+                <span className="font-medium truncate">{attachedFile.name}</span>
+                <span className="text-[10px] opacity-75">({(attachedFile.content.length / 1024).toFixed(1)} KB text context)</span>
+              </div>
+              <button
+                onClick={() => setAttachedFile(null)}
+                className="ml-3 hover:text-foreground shrink-0"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </motion.div>
+          )}
+
           <div className="flex gap-2 items-end">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".txt,.json,.md,.csv,.pdf"
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={uploading || typing}
+              className="h-11 w-11 rounded-xl shrink-0 border-border/60 hover:bg-muted"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+              ) : (
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -188,7 +268,7 @@ function AssistantPage() {
             />
             <Button
               onClick={() => send(input)}
-              disabled={typing || !input.trim()}
+              disabled={typing || uploading || !input.trim()}
               className="h-11 w-11 rounded-xl bg-gradient-primary text-primary-foreground p-0"
             >
               <Send className="h-4 w-4" />

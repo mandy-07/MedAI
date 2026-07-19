@@ -10,7 +10,7 @@ class PatientInfo(BaseModel):
 
     patient_name: str = Field(
         ...,
-        min_length=2,
+        min_length=1,
         max_length=100
     )
 

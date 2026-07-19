@@ -29,8 +29,8 @@ class MongoDB:
 
             self.client = AsyncIOMotorClient(
                 settings.MONGODB_URI,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=5000,
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=30000,
             )
 
             self.database = self.client[settings.DATABASE_NAME]
