@@ -34,7 +34,10 @@ RUN apt-get update && apt-get install -y \
 ENV MALLOC_TRIM_THRESHOLD_=0 \
     PYTORCH_NO_CUDA_MEMORY_CACHING=1 \
     OMP_NUM_THREADS=1 \
-    MKL_NUM_THREADS=1
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    VECLIB_MAXIMUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1
 
 # ==========================================================
 # Install Python Dependencies
@@ -52,9 +55,9 @@ COPY . .
 # ==========================================================
 # Expose Port
 # ==========================================================
-EXPOSE 7860
+EXPOSE 10000
 
 # ==========================================================
 # Run FastAPI
 # ==========================================================
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD uvicorn backend.app:app --host 0.0.0.0 --port $PORT --workers 1
