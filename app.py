@@ -21,3 +21,7 @@ with gr.Blocks(title="MedAI Backend") as demo:
 # Gradio handles the user interface at "/", while leaving all FastAPI endpoints
 # (like `/health` and `/api/v1/...`) fully operational.
 app = gr.mount_gradio_app(fastapi_app, demo, path="/")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
