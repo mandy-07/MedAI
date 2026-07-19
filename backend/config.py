@@ -6,70 +6,70 @@ class Settings(BaseSettings):
     # ==========================================================
     # Project Configuration
     # ==========================================================
-    PROJECT_NAME: str
-    PROJECT_VERSION: str
-    ENVIRONMENT: str
-    DEBUG: bool
+    PROJECT_NAME: str = "MedAI"
+    PROJECT_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = "production"
+    DEBUG: bool = False
 
     # ==========================================================
     # API Configuration
     # ==========================================================
-    API_V1_PREFIX: str
-    HOST: str
-    PORT: int
+    API_V1_PREFIX: str = "/api/v1"
+    HOST: str = "0.0.0.0"
+    PORT: int = 7860
 
-    BASE_URL: str
+    BASE_URL: str = "http://127.0.0.1:7860"
 
     # ==========================================================
     # Database
     # ==========================================================
     MONGODB_URI: str
-    DATABASE_NAME: str
-    GRIDFS_BUCKET: str
+    DATABASE_NAME: str = "medai"
+    GRIDFS_BUCKET: str = "reports"
 
     # ==========================================================
     # LLM Configuration
     # ==========================================================
     GROQ_API_KEY: str
-    LLM_MODEL: str
+    LLM_MODEL: str = "openai/gpt-oss-120b"
 
     # ==========================================================
     # Model Configuration
     # ==========================================================
-    MODEL_PATH: Path
-    CLASS_NAMES_PATH: Path
-    DEVICE: str
+    MODEL_PATH: Path = Path("models/Transfer_1/efficientnet_head_best.pth")
+    CLASS_NAMES_PATH: Path = Path("models/Transfer_1/class_names.json")
+    DEVICE: str = "cpu"
 
     # ==========================================================
     # Image Configuration
     # ==========================================================
-    IMAGE_SIZE: int
-    MAX_UPLOAD_SIZE: int
+    IMAGE_SIZE: int = 224
+    MAX_UPLOAD_SIZE: int = 10485760
 
     # ==========================================================
     # Storage Directories
     # ==========================================================
-    UPLOAD_DIR: Path
-    GRADCAM_DIR: Path
-    TEMP_DIR: Path
-    REPORTS_DIR: Path
+    UPLOAD_DIR: Path = Path("uploads")
+    GRADCAM_DIR: Path = Path("gradcam")
+    TEMP_DIR: Path = Path("temp")
+    REPORTS_DIR: Path = Path("generated_reports")
 
     # ==========================================================
     # Prediction Configuration
     # ==========================================================
-    CONFIDENCE_THRESHOLD: float
-    TOP_K_PREDICTIONS: int
+    CONFIDENCE_THRESHOLD: float = 0.60
+    TOP_K_PREDICTIONS: int = 3
 
     # ==========================================================
     # Report Generation
     # ==========================================================
-    REPORT_TEMPLATE: Path
+    REPORT_TEMPLATE: Path = Path("templates/report_template.html")
 
     # ==========================================================
     # Logging
     # ==========================================================
-    LOG_LEVEL: str
-    LOG_FILE: Path
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: Path = Path("logs/medai.log")
 
     # ==========================================================
     # Pydantic Settings Configuration
