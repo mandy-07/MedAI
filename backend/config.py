@@ -1,4 +1,5 @@
 from pathlib import Path
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,6 +71,13 @@ class Settings(BaseSettings):
     # ==========================================================
     LOG_LEVEL: str = "INFO"
     LOG_FILE: Path = Path("logs/medai.log")
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def strip_strings(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
     # ==========================================================
     # Pydantic Settings Configuration
