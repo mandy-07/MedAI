@@ -5,6 +5,22 @@ import traceback
 # Ensure the project root is in the python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# 1. Import heavy backend modules FIRST so they are cached and the GIL is free.
+# This prevents background server starvation during launch.
+print("Pre-loading backend modules...")
+sys.stdout.flush()
+
+from backend.routes.health import router as health_router
+from backend.routes.predict import router as predict_router
+from backend.routes.report import router as report_router
+from backend.routes.history import router as history_router
+from backend.routes.chatbot import router as chatbot_router
+from backend.config import settings
+from backend.database import mongodb
+
+print("Backend modules loaded successfully.")
+sys.stdout.flush()
+
 import gradio as gr
 
 # Create a simple, clean Gradio interface to display Space status
@@ -23,8 +39,9 @@ if __name__ == "__main__":
     
     # Launch standard Gradio (non-blocking)
     print("Launching Gradio interface...")
+    sys.stdout.flush()
     demo.launch(server_name="0.0.0.0", server_port=port, prevent_thread_lock=True)
-    print("Gradio interface launched.")
+    print("Gradio interface launched successfully.")
     sys.stdout.flush()
     
     try:
@@ -37,13 +54,6 @@ if __name__ == "__main__":
         sys.stdout.flush()
         
         # Mount our custom routers
-        from backend.routes.health import router as health_router
-        from backend.routes.predict import router as predict_router
-        from backend.routes.report import router as report_router
-        from backend.routes.history import router as history_router
-        from backend.routes.chatbot import router as chatbot_router
-        from backend.config import settings
-
         app.include_router(health_router)
         app.include_router(predict_router, prefix=settings.API_V1_PREFIX)
         app.include_router(report_router, prefix=settings.API_V1_PREFIX)
@@ -56,9 +66,7 @@ if __name__ == "__main__":
         app.mount("/gradcam", StaticFiles(directory=str(settings.GRADCAM_DIR)), name="gradcam")
         app.mount("/reports", StaticFiles(directory=str(settings.REPORTS_DIR)), name="reports")
 
-        # Register database connection events
-        from backend.database import mongodb
-
+        # Register database connection events for app restart
         @app.on_event("startup")
         async def startup_event():
             print("Connecting to MongoDB...")
@@ -71,8 +79,7 @@ if __name__ == "__main__":
         async def shutdown_event():
             await mongodb.disconnect()
             
-        # Since startup events of demo.app already ran during launch(),
-        # we need to trigger our MongoDB connection manually for the running app!
+        # Manually trigger MongoDB connection for the currently running app instance
         import asyncio
         loop = asyncio.get_event_loop()
         if loop.is_running():
