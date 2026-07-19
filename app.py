@@ -15,11 +15,14 @@ from backend.routes.predict import router as predict_router
 from backend.routes.report import router as report_router
 from backend.routes.history import router as history_router
 from backend.routes.chatbot import router as chatbot_router
-from backend.config import settings
+from backend.config import settings, initialize_directories
 from backend.database import mongodb
 
 print("Backend modules loaded successfully.")
 sys.stdout.flush()
+
+# Initialize static asset directories (uploads, gradcam, reports)
+initialize_directories()
 
 import gradio as gr
 
