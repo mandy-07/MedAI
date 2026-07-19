@@ -1,6 +1,11 @@
 import os
 import sys
 
+# Disable Gradio SSR (Server-Side Rendering) mode.
+# This prevents Gradio from starting a Node.js proxy on port 7860,
+# allowing our Uvicorn server to bind directly to port 7860.
+os.environ["GRADIO_SSR_MODE"] = "false"
+
 # Ensure the project root is in the python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -22,9 +27,9 @@ app = gr.mount_gradio_app(fastapi_app, demo, path="/")
 
 if __name__ == "__main__":
     import uvicorn
-    # On Hugging Face Spaces, the Node proxy runs on 7860 and forwards to Python on 7861.
+    # On Hugging Face Spaces, we bind directly to port 7860 (since SSR Node proxy is disabled).
     # Locally, we run on port 8000.
     is_hf = "SPACE_ID" in os.environ
-    port = 7861 if is_hf else 8000
+    port = 7860 if is_hf else 8000
     
     uvicorn.run(app, host="0.0.0.0", port=port)
