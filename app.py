@@ -5,6 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import gradio as gr
+from backend.app import app as fastapi_app
 
 # Create a simple, clean Gradio interface to display Space status
 with gr.Blocks(title="MedAI Backend") as demo:
@@ -16,46 +17,14 @@ with gr.Blocks(title="MedAI Backend") as demo:
         "visit the [Swagger docs](/docs) endpoint."
     )
 
-# Launch the Gradio interface first.
-# This binds to port 7860 using Gradio's verified paths.
-# prevent_thread_lock=True keeps the script running so we can attach our routes.
-demo.launch(server_name="0.0.0.0", server_port=7860, prevent_thread_lock=True)
+# Mount the Gradio interface onto our FastAPI app.
+app = gr.mount_gradio_app(fastapi_app, demo, path="/")
 
-# Intercept Gradio's internal FastAPI app
-app = demo.app
-
-# Mount our custom routers
-from backend.routes.health import router as health_router
-from backend.routes.predict import router as predict_router
-from backend.routes.report import router as report_router
-from backend.routes.history import router as history_router
-from backend.routes.chatbot import router as chatbot_router
-from backend.config import settings
-
-app.include_router(health_router)
-app.include_router(predict_router, prefix=settings.API_V1_PREFIX)
-app.include_router(report_router, prefix=settings.API_V1_PREFIX)
-app.include_router(history_router, prefix=settings.API_V1_PREFIX)
-app.include_router(chatbot_router, prefix=settings.API_V1_PREFIX)
-
-# Mount static files directories
-from fastapi.staticfiles import StaticFiles
-app.mount("/uploads", StaticFiles(directory=str(settings.UPLOAD_DIR)), name="uploads")
-app.mount("/gradcam", StaticFiles(directory=str(settings.GRADCAM_DIR)), name="gradcam")
-app.mount("/reports", StaticFiles(directory=str(settings.REPORTS_DIR)), name="reports")
-
-# Register database connection lifespan events
-from backend.database import mongodb
-
-@app.on_event("startup")
-async def startup_event():
-    await mongodb.connect()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await mongodb.disconnect()
-
-# Keep the main thread alive
-import time
-while True:
-    time.sleep(1)
+if __name__ == "__main__":
+    import uvicorn
+    # On Hugging Face Spaces, the Node proxy runs on 7860 and forwards to Python on 7861.
+    # Locally, we run on port 8000.
+    is_hf = "SPACE_ID" in os.environ
+    port = 7861 if is_hf else 8000
+    
+    uvicorn.run(app, host="0.0.0.0", port=port)
