@@ -1,16 +1,10 @@
 import os
 import sys
 
-# Disable Gradio SSR (Server-Side Rendering) mode.
-# This prevents Gradio from starting a Node.js proxy on port 7860,
-# allowing our Uvicorn server to bind directly to port 7860.
-os.environ["GRADIO_SSR_MODE"] = "false"
-
 # Ensure the project root is in the python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import gradio as gr
-from backend.app import app as fastapi_app
 
 # Create a simple, clean Gradio interface to display Space status
 with gr.Blocks(title="MedAI Backend") as demo:
@@ -22,18 +16,9 @@ with gr.Blocks(title="MedAI Backend") as demo:
         "visit the [Swagger docs](/docs) endpoint."
     )
 
-# Mount the Gradio interface onto our FastAPI app.
-app = gr.mount_gradio_app(fastapi_app, demo, path="/")
-
 if __name__ == "__main__":
-    import uvicorn
-    # On Hugging Face Spaces, we bind directly to port 7860 (since SSR Node proxy is disabled).
-    # Locally, we run on port 8000.
     is_hf = "SPACE_ID" in os.environ
     port = 7860 if is_hf else 8000
     
-    if is_hf:
-        print("Running on local URL: http://0.0.0.0:7860")
-        sys.stdout.flush()
-        
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Run standard Gradio launch (blocking)
+    demo.launch(server_name="0.0.0.0", server_port=port)
