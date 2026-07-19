@@ -32,4 +32,8 @@ if __name__ == "__main__":
     is_hf = "SPACE_ID" in os.environ
     port = 7860 if is_hf else 8000
     
+    if is_hf:
+        print("Running on local URL: http://0.0.0.0:7860")
+        sys.stdout.flush()
+        
     uvicorn.run(app, host="0.0.0.0", port=port)
