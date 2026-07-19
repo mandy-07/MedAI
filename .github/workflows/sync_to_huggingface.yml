@@ -24,4 +24,4 @@ jobs:
           git lfs checkout
           
           # Replace YOUR_HF_USERNAME and YOUR_SPACE_NAME with your actual Hugging Face details
-          git push --force https://mandy-07:$HF_TOKEN@huggingface.co/spaces/mandy-07/medai-backend main
+          git push --force https://Mandy07:$HF_TOKEN@huggingface.co/spaces/Mandy07/medAI-backend main
