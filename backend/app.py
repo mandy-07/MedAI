@@ -136,20 +136,21 @@ async def get_report_file(filename: str):
     if local_path.exists():
         return FileResponse(local_path, media_type="application/pdf")
 
-    # Retrieve from GridFS
+    # Fall back to GridFS
     grid_out = await mongodb.get_file_stream(filename)
-    if grid_out is not None:
-        try:
-            content = await grid_out.read()
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(content)
-            return FileResponse(local_path, media_type="application/pdf")
-        except Exception as e:
-            logger.error("Failed to cache report %s from GridFS: %s", filename, e)
-            return StreamingResponse(BytesIO(content), media_type="application/pdf")
+    if grid_out is None:
+        raise HTTPException(status_code=404, detail="Medical report not found")
 
-    raise HTTPException(status_code=404, detail="Medical report not found")
+    content = await grid_out.read()
+    # Cache to local disk for subsequent requests
+    try:
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(content)
+        return FileResponse(local_path, media_type="application/pdf")
+    except Exception as e:
+        logger.warning("Could not cache report %s locally: %s", filename, e)
+        return StreamingResponse(BytesIO(content), media_type="application/pdf")
 
 
 @app.get("/gradcam/{filename}")
@@ -162,20 +163,21 @@ async def get_gradcam_file(filename: str):
     if local_path.exists():
         return FileResponse(local_path, media_type="image/png")
 
-    # Retrieve from GridFS
+    # Fall back to GridFS
     grid_out = await mongodb.get_file_stream(filename)
-    if grid_out is not None:
-        try:
-            content = await grid_out.read()
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(content)
-            return FileResponse(local_path, media_type="image/png")
-        except Exception as e:
-            logger.error("Failed to cache Grad-CAM %s from GridFS: %s", filename, e)
-            return StreamingResponse(BytesIO(content), media_type="image/png")
+    if grid_out is None:
+        raise HTTPException(status_code=404, detail="Grad-CAM visualization not found")
 
-    raise HTTPException(status_code=404, detail="Grad-CAM visualization not found")
+    content = await grid_out.read()
+    # Cache to local disk for subsequent requests
+    try:
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(content)
+        return FileResponse(local_path, media_type="image/png")
+    except Exception as e:
+        logger.warning("Could not cache Grad-CAM %s locally: %s", filename, e)
+        return StreamingResponse(BytesIO(content), media_type="image/png")
 
 
 # ==========================================================
@@ -197,34 +199,8 @@ app.mount(
 )
 
 
-# ----------------------------------------------------------
-# Grad-CAM Images
-# URL:
-# http://127.0.0.1:8000/gradcam/<image_name>.png
-# ----------------------------------------------------------
-
-app.mount(
-    "/gradcam",
-    StaticFiles(
-        directory=str(settings.GRADCAM_DIR),
-    ),
-    name="gradcam",
-)
-
-
-# ----------------------------------------------------------
-# Generated PDF Reports
-# URL:
-# http://127.0.0.1:8000/reports/<report_name>.pdf
-# ----------------------------------------------------------
-
-app.mount(
-    "/reports",
-    StaticFiles(
-        directory=str(settings.REPORTS_DIR),
-    ),
-    name="reports",
-)
+# NOTE: /gradcam and /reports are served via dynamic routes above
+# (with GridFS fallback) — no StaticFiles mount needed for those.
 
 
 # ==========================================================
