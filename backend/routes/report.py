@@ -6,6 +6,7 @@ from backend.schemas.report import (
     ReportRequest,
     ReportResponse,
 )
+from backend.database import mongodb
 from backend.services.history_service import history_service
 from backend.services.report_generator import ReportGenerator
 from backend.utils.logger import logger
@@ -48,6 +49,16 @@ async def generate_medical_report(
             "Medical report generated successfully: %s",
             report_path,
         )
+
+        # --------------------------------------------------
+        # Upload to GridFS
+        # --------------------------------------------------
+        if report_path:
+            report_filename = Path(report_path).name
+            try:
+                await mongodb.upload_file(str(report_path), report_filename)
+            except Exception as pdf_err:
+                logger.warning("Could not upload PDF report to GridFS: %s", pdf_err)
 
         # --------------------------------------------------
         # Save Prediction History

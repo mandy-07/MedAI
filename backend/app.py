@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
+from io import BytesIO
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, StreamingResponse
 
 from backend.config import (
     initialize_directories,
@@ -116,6 +119,63 @@ else:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+
+
+# ==========================================================
+# Dynamic GridFS Fallback Route Handlers
+# ==========================================================
+
+@app.get("/reports/{filename}")
+async def get_report_file(filename: str):
+    """
+    Serve a generated PDF report. Checks local cache first,
+    falling back to MongoDB GridFS if not found.
+    """
+    local_path = Path(settings.REPORTS_DIR) / filename
+    if local_path.exists():
+        return FileResponse(local_path, media_type="application/pdf")
+
+    # Retrieve from GridFS
+    grid_out = await mongodb.get_file_stream(filename)
+    if grid_out is not None:
+        try:
+            content = await grid_out.read()
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(content)
+            return FileResponse(local_path, media_type="application/pdf")
+        except Exception as e:
+            logger.error("Failed to cache report %s from GridFS: %s", filename, e)
+            return StreamingResponse(BytesIO(content), media_type="application/pdf")
+
+    raise HTTPException(status_code=404, detail="Medical report not found")
+
+
+@app.get("/gradcam/{filename}")
+async def get_gradcam_file(filename: str):
+    """
+    Serve a Grad-CAM visualization image. Checks local cache first,
+    falling back to MongoDB GridFS if not found.
+    """
+    local_path = Path(settings.GRADCAM_DIR) / filename
+    if local_path.exists():
+        return FileResponse(local_path, media_type="image/png")
+
+    # Retrieve from GridFS
+    grid_out = await mongodb.get_file_stream(filename)
+    if grid_out is not None:
+        try:
+            content = await grid_out.read()
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(content)
+            return FileResponse(local_path, media_type="image/png")
+        except Exception as e:
+            logger.error("Failed to cache Grad-CAM %s from GridFS: %s", filename, e)
+            return StreamingResponse(BytesIO(content), media_type="image/png")
+
+    raise HTTPException(status_code=404, detail="Grad-CAM visualization not found")
 
 
 # ==========================================================
